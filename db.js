@@ -2,7 +2,7 @@
 const mysql = require('mysql');
 require("dotenv").config();
 const connectionInfo = require('./dbinfo');
-const app = require('./index');
+const app = require('./index.js');
 
 // Create database connection with .env variables
 const db = mysql.createConnection({
@@ -19,3 +19,5 @@ db.connect(err => {
     // console.log("connected as id "+connection.threadId);
     app.init();
 });
+
+module.exports.connection = db;
