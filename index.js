@@ -47,7 +47,23 @@ function mainPrompt() {
 }
 
 function viewPrompt() {
-    
+    inquirer.prompt([
+        {
+            message: "View:",
+            type: "list",
+            name: "view",
+            choices: ["All Employees","All Departments","All Roles"]
+        }
+    ]).then(answers => {
+        switch(answers.view) {
+            case "All Employees":
+                return db.showAll("employees");
+            case "All Departments":
+                return db.showAll("departments");
+            case "All Roles":
+                return db.showAll("roles");
+        }
+    });
 }
 
 function addPrompt() {}
