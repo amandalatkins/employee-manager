@@ -72,6 +72,12 @@ function editPrompt() {}
 
 function removePrompt() {}
 
+// CRUD PROMPTS
+
+var promptCRUD = (table_name,fromMainMenu) => {
+
+}
+
 function quitApp() {
     console.log("\n"+"=".repeat(62)+"\n");
     ascii.create('    Goodbye!','Doom',(err, result) => {
@@ -82,4 +88,5 @@ function quitApp() {
     });
 }
 
+module.exports.promptCRUD = promptCRUD;
 module.exports.init = init;
