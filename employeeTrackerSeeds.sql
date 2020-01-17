@@ -39,9 +39,3 @@ INSERT INTO employees (firstName, lastName, role_id, manager_id)
 VALUES ("John","Smith",1,null),("Roderick","Bailey",2,1),("Rhonda", "Hart",3,1),
 ("Inez","West",4,null),
 ("Melody","McDaniel",5,null),("Bruce","Marshall",6,5);
-
-
-
-
-
-INSERT INTO employees (firstName, lastName)

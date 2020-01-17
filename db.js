@@ -7,6 +7,8 @@ require('console.table');
 const connectionInfo = require('./dbinfo');
 const app = require('./index.js');
 
+console.log(app);
+
 // Create database connection with .env variables
 const db = mysql.createConnection({
     host: connectionInfo.db_host,
@@ -27,7 +29,6 @@ var showAll = table_name => {
     let query = "";
     let cb = "";
     if (table_name === "employees") {
-
         // Show all employees first name, last name, role, salary, department, and manager name
         query = `SELECT emp1.firstName AS 'First Name', emp1.lastName AS 'Last Name', title AS 'Title', name AS 'Department', salary AS 'Salary', GROUP_CONCAT(DISTINCT emp2.firstName,' ', emp2.lastName) AS 'Manager'
         FROM employees emp1
@@ -36,7 +37,6 @@ var showAll = table_name => {
         LEFT JOIN employees emp2 ON emp1.manager_id = emp2.id
         GROUP BY emp1.id
         ORDER BY emp1.lastName ASC`;
-        cb = app.promptCRUD;
     } else if (table_name === "roles") {
         // Show all roles with corresponding department and number of employees in each role    
         query = `SELECT name AS 'Department', title AS 'Position', salary AS 'Salary', COUNT(employees.role_id) AS 'Total Employees'
@@ -44,27 +44,84 @@ var showAll = table_name => {
         JOIN departments ON roles.department_id = departments.id
         JOIN employees ON employees.role_id = roles.id
         GROUP BY roles.id`;
-        cb = app.promptCRUD;
     } else if (table_name === "departments") {
         // Show all departments with number of roles in each department
         query = `SELECT name AS 'Department', COUNT(roles.department_id) AS 'Total Roles'
         FROM departments
         JOIN roles ON roles.department_id = departments.id
         GROUP BY roles.department_id`;
-        cb = app.promptCRUD;
     }
 
     db.query(query,table_name,(err,res) => {
         if (err) throw err;
+        console.log('\n');
         console.table(res);
-        cb(table_name, false);
+        app.crudPrompt(table_name, false);
     });
 }
 
+var createRow = (data,table_name) => {
+    db.query(`INSERT INTO ${table_name} SET ?`,[data],function(err,res) {
+        if (err) throw err;
+        console.log("\nSuccess! Added to "+table_name+".\n");
+        app.mainPrompt();
+    });
+}
 
+var getSpecific = (columns, table) => {
+    return new Promise(function(resolve, reject){
+        db.query(`SELECT ${columns} FROM ${table}`,(err,res) => {
+            if (err) throw err;
 
+            if (res === undefined) {
+                reject(new Error("Not found."));
+            } else {
+                resolve(res);
+            }
+            
+        });
 
+    });
+}
 
-module.exports.showAll = showAll;
+var getEmployeeChoices = () => {
+    return getSpecific('id,firstName,lastName','employees').then(res => {
+        let employeeChoices = [];
+        res.forEach(choice => {
+            employeeChoices.push({name: choice.firstName + " "+choice.lastName, value: choice.id });
+        });
+        return new Promise(function(resolve,reject) {
+            if (employeeChoices.length > 0) {
+                resolve(employeeChoices);
+            } else {
+                reject(new Error("There was a problem retrieving employees"));
+            }
+        });
+    });
 
-module.exports.connection = db;
+}
+
+var getRoleChoices = () => {
+
+}
+
+var getDepartmentChoices = () => {
+
+}
+
+module.exports = {
+    connection: db,
+    getSpecific: getSpecific,
+    showAll: showAll,
+    createRow: createRow,
+    choices: {
+        employees: getEmployeeChoices,
+        roles: getRoleChoices,
+        departments: getDepartmentChoices
+    }
+}
+
+// module.exports.connection = db;
+// module.exports.getSpecific = getSpecific;
+// module.exports.showAll = showAll;
+
