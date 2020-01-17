@@ -39,17 +39,17 @@ var showAll = table_name => {
         ORDER BY emp1.lastName ASC`;
     } else if (table_name === "roles") {
         // Show all roles with corresponding department and number of employees in each role    
-        query = `SELECT name AS 'Department', title AS 'Position', salary AS 'Salary', COUNT(employees.role_id) AS 'Total Employees'
+        query = `SELECT name AS 'Department', title AS 'Position', salary AS 'Salary'
         FROM roles
-        JOIN departments ON roles.department_id = departments.id
-        JOIN employees ON employees.role_id = roles.id
+        LEFT JOIN departments ON roles.department_id = departments.id
+        LEFT JOIN employees ON employees.role_id = roles.id
         GROUP BY roles.id`;
     } else if (table_name === "departments") {
         // Show all departments with number of roles in each department
-        query = `SELECT name AS 'Department', COUNT(roles.department_id) AS 'Total Roles'
-        FROM departments
-        JOIN roles ON roles.department_id = departments.id
-        GROUP BY roles.department_id`;
+        query = `SELECT name AS 'Department'
+        FROM departments`;
+        // JOIN roles ON roles.department_id = departments.id
+        // GROUP BY roles.department_id`;
     }
 
     db.query(query,table_name,(err,res) => {
