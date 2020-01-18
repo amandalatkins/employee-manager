@@ -61,10 +61,11 @@ var showAll = (table_name,callback) => {
     });
 }
 
-var createRow = (data,table_name) => {
+var createRow = (data,table_name,callback) => {
     db.query(`INSERT INTO ${table_name} SET ?`,[data],function(err,res) {
         if (err) throw err;
         console.log("\nSuccess! Added to "+table_name+".\n");
+        callback();
     });
 }
 
@@ -84,9 +85,10 @@ var getSpecific = (columns, table) => {
     });
 }
 
-var update = (table_name, new_data, id) => {
+var update = (table_name, new_data, id, callback) => {
     db.query('UPDATE ?? SET ? WHERE ?',[table_name,new_data,id],function(err,res) {
-        console.log("\nSuccessfully updated employee!\n");
+        console.log("\nSuccessfully updated "+table_name.slice(0,-1)+"!\n");
+        callback();
     });
 }
 
