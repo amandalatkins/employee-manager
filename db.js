@@ -7,8 +7,6 @@ require('console.table');
 const connectionInfo = require('./dbinfo');
 const app = require('./index.js');
 
-console.log(app);
-
 // Create database connection with .env variables
 const db = mysql.createConnection({
     host: connectionInfo.db_host,
@@ -181,8 +179,3 @@ module.exports = {
         departments: getDepartmentChoices
     }
 }
-
-// module.exports.connection = db;
-// module.exports.getSpecific = getSpecific;
-// module.exports.showAll = showAll;
-
