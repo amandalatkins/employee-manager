@@ -37,7 +37,7 @@ var mainPrompt = () => {
             case "Edit":
                 return updatePrompt(false);
             case "Remove":
-                return deletePrompt(false);
+                return removePrompt(false);
             case "Quit":
                 return quitApp();
         }
@@ -55,29 +55,8 @@ function viewPrompt() {
     ]).then(answers => {
 
         db.showAll(answers.table_name, function() {
-            crudPrompt(answers.table_name);
+            postViewPrompt(answers.table_name);
         });
-
-        // switch(answers.view) {
-
-
-
-        //     case "All Employees":
-        //         db.showAll("employees", function() {
-        //             crudPrompt("employees",false);
-        //         });
-        //         break;
-        //     case "All Departments":
-        //         db.showAll("departments", function() {
-        //             crudPrompt("departments");
-        //         });
-        //         break;
-        //     case "All Roles":
-        //         db.showAll("roles", function() {
-        //             crudPrompt();
-        //         });
-        //         break;
-        // }
     });
 }
 
@@ -85,7 +64,7 @@ function viewPrompt() {
 
 // CRUD PROMPTS
 
-var crudPrompt = (table_name,prev_menu) => {
+var postViewPrompt = (table_name) => {
     // Capitalize the first letter and remove the S of 'table_name' for use in inquirer prompts
     let prettyName = prettify(table_name);
 
@@ -103,8 +82,8 @@ var crudPrompt = (table_name,prev_menu) => {
             value: "delete"
         },
         {
-            name: "Back to "+prev_menu,
-            value: "prev_"+prev_menu
+            name: "Back to View Menu",
+            value: "view"
         },
         {
             name: "Back to Main Menu",
@@ -114,7 +93,7 @@ var crudPrompt = (table_name,prev_menu) => {
             name: "Quit",
             value: "quit"
         }
-    };
+    ];
     
     inquirer.prompt([
         {
@@ -131,12 +110,8 @@ var crudPrompt = (table_name,prev_menu) => {
                 return updatePrompt(table_name);
             case "remove":
                 return removePrompt(table_name);
-            case "prev_view":
+            case "view":
                 return viewPrompt();
-            case "prev_update":
-                return updatePrompt(false);
-            case "prev_remove":
-                return removePrompt(false);
             case "main":
                 return mainPrompt();
             case "quit":
@@ -166,10 +141,17 @@ function createPrompt(table_name) {
                     {
                         name: "New Department",
                         value: "departments"
+                    },
+                    {
+                        name: "Back to Main Menu",
+                        value: "mainMenu"
                     }
                 ]
             }
         ]).then(answers => {
+
+            if (answers.table_name === "mainMenu") return mainPrompt();
+
             return createPrompt(answers.table_name);
         });
 
@@ -268,10 +250,15 @@ function updatePrompt(table_name) {
                     {
                         name: "Department",
                         value: "departments"
+                    },
+                    {
+                        name: "Back to Main Menu",
+                        value: "mainMenu"
                     }
                 ]
             }
         ]).then(answers => {
+            if (answers.table_name === "mainMenu") return mainPrompt();
             return updatePrompt(answers.table_name);
         });
 
@@ -383,7 +370,97 @@ function updatePrompt(table_name) {
 }
 
 function removePrompt(table_name) {
-    
+    if (table_name === false) {
+
+        inquirer.prompt([
+            {
+                message: "What do you want to remove?",
+                name: "table_name",
+                type: "list",
+                choices: [
+                    {
+                        name: "Employee",
+                        value: "employees"
+                    },
+                    {
+                        name: "Role",
+                        value: "roles"
+                    },
+                    {
+                        name: "Department",
+                        value: "departments"
+                    },
+                    {
+                        name: "Back to Main Menu",
+                        value: "mainMenu"
+                    }
+                ]
+            }
+        ]).then(answers => {
+            if (answers.table_name === "mainMenu") return mainPrompt();
+            return removePrompt(answers.table_name);
+        });
+
+    } else {
+
+        db.showAll(table_name, () => {});
+
+        if (table_name === "employees") {
+
+            db.choices.employees().then(res => {
+
+                inquirer.prompt([
+                    formatListQuestion("employee","id",res)
+                ]).then(answers => {
+                    db.deleteRow(table_name,answers, function() {
+                        removePrompt(false);
+                    });
+                });
+            });
+        } 
+        
+        else if (table_name === "roles") {
+            db.choices.roles().then(res => {
+
+                inquirer.prompt([
+                    formatListQuestion("role","id",res),
+                    {
+                        message: "This will delete all employees associated with this role. Are you sure?",
+                        name: "confirm",
+                        type: "confirm",
+
+                    }
+                ]).then(answers => {
+                    if (answers.confirm) {
+                        db.deleteRow(table_name,{id: answers.id}, function() {
+                            removePrompt(false);
+                        });
+                    }
+                });
+            });
+
+        } 
+        
+        else if (table_name === "departments") {
+            db.choices.departments().then(res => {
+                inquirer.prompt([
+                    formatListQuestion("department","id",res),
+                    {
+                        message: "This will delete all roles and employees associated with this department. Are you sure?",
+                        name: "confirm",
+                        type: "confirm",
+
+                    }
+                ]).then(answers => {
+                    if (answers.confirm) {
+                        db.deleteRow(table_name,{id: answers.id}, function() {
+                            removePrompt(false);
+                        });
+                    }
+                });
+            });
+        }
+    }
 }
 
 function quitApp() {
@@ -409,6 +486,4 @@ function prettify(string) {
     return (string[0].toUpperCase() + string.slice(1)).slice(0,-1);
 }
 
-module.exports.crudPrompt = crudPrompt;
 module.exports.init = init;
-module.exports.mainPrompt = mainPrompt;
