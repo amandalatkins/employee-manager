@@ -25,9 +25,8 @@ db.connect(err => {
     app.init();
 });
 
-var showAll = table_name => {
+var showAll = (table_name,callback) => {
     let query = "";
-    let cb = "";
     if (table_name === "employees") {
         // Show all employees first name, last name, role, salary, department, and manager name
         query = `SELECT emp1.firstName AS 'First Name', emp1.lastName AS 'Last Name', title AS 'Title', name AS 'Department', salary AS 'Salary', GROUP_CONCAT(DISTINCT emp2.firstName,' ', emp2.lastName) AS 'Manager'
@@ -58,7 +57,7 @@ var showAll = table_name => {
         if (err) throw err;
         console.log('\n');
         console.table(res);
-        app.crudPrompt(table_name, false);
+        callback();
     });
 }
 
@@ -66,7 +65,6 @@ var createRow = (data,table_name) => {
     db.query(`INSERT INTO ${table_name} SET ?`,[data],function(err,res) {
         if (err) throw err;
         console.log("\nSuccess! Added to "+table_name+".\n");
-        app.mainPrompt();
     });
 }
 
@@ -86,7 +84,13 @@ var getSpecific = (columns, table) => {
     });
 }
 
-var getEmployeeChoices = () => {
+var update = (table_name, new_data, id) => {
+    db.query('UPDATE ?? SET ? WHERE ?',[table_name,new_data,id],function(err,res) {
+        console.log("\nSuccessfully updated employee!\n");
+    });
+}
+
+var getEmployeeChoices = function() {
     return getSpecific('id,firstName,lastName','employees').then(res => {
         let employeeChoices = [];
         res.forEach(choice => {
@@ -100,15 +104,39 @@ var getEmployeeChoices = () => {
             }
         });
     });
-
 }
 
-var getRoleChoices = () => {
+var getRoleChoices = function() {
 
+    return getSpecific('id,title','roles').then(res => {
+        let roleChoices = [];
+        res.forEach(choice => {
+            roleChoices.push({name: choice.title, value: choice.id });
+        });
+        return new Promise(function(resolve,reject) {
+            if (roleChoices.length > 0) {
+                resolve(roleChoices);
+            } else {
+                reject(new Error("There was a problem retrieving roles."));
+            }
+        });
+    });
 }
 
-var getDepartmentChoices = () => {
-
+var getDepartmentChoices = function() {
+    return getSpecific('id,name','departments').then(res => {
+        let departmentChoices = [];
+        res.forEach(choice => {
+            departmentChoices.push({name: choice.name, value: choice.id });
+        });
+        return new Promise(function(resolve,reject) {
+            if (departmentChoices.length > 0) {
+                resolve(departmentChoices);
+            } else {
+                reject(new Error("There was a problem retrieving roles."));
+            }
+        });
+    });
 }
 
 module.exports = {
@@ -116,6 +144,7 @@ module.exports = {
     getSpecific: getSpecific,
     showAll: showAll,
     createRow: createRow,
+    update: update,
     choices: {
         employees: getEmployeeChoices,
         roles: getRoleChoices,

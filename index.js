@@ -33,11 +33,11 @@ var mainPrompt = () => {
             case "View":
                 return viewPrompt();
             case "Add":
-                return addPrompt();
+                return createPrompt(false);
             case "Edit":
-                return editPrompt();
+                return updatePrompt(false);
             case "Remove":
-                return removePrompt();
+                return deletePrompt(false);
             case "Quit":
                 return quitApp();
         }
@@ -49,32 +49,45 @@ function viewPrompt() {
         {
             message: "View:",
             type: "list",
-            name: "view",
-            choices: ["All Employees","All Departments","All Roles"]
+            name: "table_name",
+            choices: [{name: "All Employees", value: "employees"},{name:"All Departments",value: "departments"},{name:"All Roles", value: "roles"}]
         }
     ]).then(answers => {
-        switch(answers.view) {
-            case "All Employees":
-                return db.showAll("employees");
-            case "All Departments":
-                return db.showAll("departments");
-            case "All Roles":
-                return db.showAll("roles");
-        }
+
+        db.showAll(answers.table_name, function() {
+            crudPrompt(answers.table_name);
+        });
+
+        // switch(answers.view) {
+
+
+
+        //     case "All Employees":
+        //         db.showAll("employees", function() {
+        //             crudPrompt("employees",false);
+        //         });
+        //         break;
+        //     case "All Departments":
+        //         db.showAll("departments", function() {
+        //             crudPrompt("departments");
+        //         });
+        //         break;
+        //     case "All Roles":
+        //         db.showAll("roles", function() {
+        //             crudPrompt();
+        //         });
+        //         break;
+        // }
     });
 }
 
-function addPrompt() {}
 
-function editPrompt() {}
-
-function removePrompt() {}
 
 // CRUD PROMPTS
 
-var crudPrompt = (table_name,fromMainMenu) => {
+var crudPrompt = (table_name,prev_menu) => {
     // Capitalize the first letter and remove the S of 'table_name' for use in inquirer prompts
-    let prettyName = (table_name[0].toUpperCase() + table_name.slice(1)).slice(0,-1);
+    let prettyName = prettify(table_name);
 
     let choices = [
         {
@@ -89,24 +102,19 @@ var crudPrompt = (table_name,fromMainMenu) => {
             name: "Remove "+prettyName,
             value: "delete"
         },
-    ]
-
-    if (!fromMainMenu) {
-        choices.push({
-            name: "Back to View Menu",
-            value: "view"
-        });
-    }
-
-    choices.push({
-        name: "Back to Main Menu",
-        value: "main"
-    });
-
-    choices.push({
+        {
+            name: "Back to "+prev_menu,
+            value: "prev_"+prev_menu
+        },
+        {
+            name: "Back to Main Menu",
+            value: "main"
+        },
+        {
             name: "Quit",
             value: "quit"
-    });
+        }
+    };
     
     inquirer.prompt([
         {
@@ -123,8 +131,12 @@ var crudPrompt = (table_name,fromMainMenu) => {
                 return updatePrompt(table_name);
             case "remove":
                 return removePrompt(table_name);
-            case "view":
+            case "prev_view":
                 return viewPrompt();
+            case "prev_update":
+                return updatePrompt(false);
+            case "prev_remove":
+                return removePrompt(false);
             case "main":
                 return mainPrompt();
             case "quit":
@@ -135,85 +147,89 @@ var crudPrompt = (table_name,fromMainMenu) => {
 
 function createPrompt(table_name) {
 
+    if (table_name === false) {
+
+        inquirer.prompt([
+            {
+                message: "What do you want to add?",
+                name: "table_name",
+                type: "list",
+                choices: [
+                    {
+                        name: "New Employee",
+                        value: "employees"
+                    },
+                    {
+                        name: "New Role",
+                        value: "roles"
+                    },
+                    {
+                        name: "New Department",
+                        value: "departments"
+                    }
+                ]
+            }
+        ]).then(answers => {
+            return createPrompt(answers.table_name);
+        });
+
+    }
+
     if (table_name === "employees") {
 
-        let managerChoices = [];
-        let roleChoices = [];
+        let questions = [
+            {
+                message: "First Name:",
+                name: "firstName"
+            },
+            {
+                message: "Last Name:",
+                name: "lastName"
+            }
+        ];
 
-        db.getSpecific('id,firstName,lastName','employees').then(res => {
-            res.forEach(choice => {
-                managerChoices.push({name: choice.firstName + " "+choice.lastName, value: choice.id });
-            });
-
-            db.getSpecific('id,title','roles').then(res => {
-                // for (let i = 0; i < res.length; i++) {
-                    // roleChoices.push({name: res[i].n, value: res[i].value });
-                res.forEach(choice => {
-                    roleChoices.push({name: choice.title, value: choice.id });
+        db.choices.roles().then(res => {
+            questions.push(formatListQuestion("role","role_id",res));
+            db.choices.employees().then(res => {
+                questions.push({
+                    message: "Select manager:",
+                    type: "list",
+                    name: "manager_id",
+                    choices: res
                 });
-                // }
-                inquirer.prompt([
-                    {
-                        message: "First Name:",
-                        name: "firstName"
-                    },
-                    {
-                        message: "Last Name:",
-                        name: "lastName"
-                    },
-                    {
-                        message: "Role:",
-                        type: "list",
-                        name: "role_id",
-                        choices: roleChoices
-                    },
-                    {
-                        message: "Manager:",
-                        type: "list",
-                        name: "manager_id",
-                        choices: managerChoices
-                    }
-                ]).then(answers => {
-
+                inquirer.prompt(questions).then(answers => {
                     db.createRow(answers,table_name);
-
+        
                 });
             });
-
         });
     } 
     
     else if (table_name === "roles") {
-        let departmentChoices = [];
-
-        db.getSpecific('id,name','departments').then(res => {
-            res.forEach(choice => {
-                departmentChoices.push({name: choice.name, value: choice.id });
-            });
-            inquirer.prompt([
-                {
-                    message: "Role Title:",
-                    name: "title"
-                },
-                {
-                    message: "Salary:",
-                    name: "salary",
-                    validate: salary => {
-                        if (isNaN(salary)) {
-                            return false;
-                        } else {
-                            return true;
-                        }
+        let questions = [
+            {
+                message: "Role Title:",
+                name: "title"
+            },
+            {
+                message: "Salary",
+                name: "salary",
+                validate: salary => {
+                    if (isNaN(salary)) {
+                        console.log("\n Invalid: Must be a number. Do not include decimals.");
+                        return false;
+                    } else {
+                        return true;
                     }
-                },
-                {
-                    message: "Department:",
-                    name: "department_id",
-                    type: "list",
-                    choices: departmentChoices
                 }
-            ]).then(answers => {
+            }
+        ];
+
+        db.choices.departments().then(res => {
+            questions.push(formatListQuestion("department","department_id",res));   
+            inquirer.prompt(questions).then(answers => {
                 db.createRow(answers,table_name);
+    
             });
         });
 
@@ -233,143 +249,142 @@ function createPrompt(table_name) {
 }
 
 function updatePrompt(table_name) {
-    // if (table_name === "employees") {
+    if (table_name === false) {
 
-    //     inquirer.prompt([
-    //         {
-    //             message: "What would you like to update?",
-    //             type: "list",
-    //             name: "update",
-    //             choices: ["Role","Manager","Role and Manager"]
-    //         }
-    //     ]).then(answers => {
+        inquirer.prompt([
+            {
+                message: "What do you want to edit?",
+                name: "table_name",
+                type: "list",
+                choices: [
+                    {
+                        name: "Employee",
+                        value: "employees"
+                    },
+                    {
+                        name: "Role",
+                        value: "roles"
+                    },
+                    {
+                        name: "Department",
+                        value: "departments"
+                    }
+                ]
+            }
+        ]).then(answers => {
+            return updatePrompt(answers.table_name);
+        });
 
-    //         let questions = [];
+    } else {
 
-    //         if (answers.update.indexOf("Role") !== -1) {
-    //             db.choices.employees().then(res => {
-    //                 questions.push({
-    //                     message: "Select new role:",
-    //                     type: "list",
-    //                     name: "role_id",
-    //                     choices: res
-    //                 });
-    //             }); 
-    //         }
+        db.showAll(table_name);
 
-    //         if (answers.update.indexOf("Manager") !== -1) {
-    //             db.choices.employees().then(res => {
-    //                 questions.push({
-    //                     message: "Select new managers:",
-    //                     type: "list",
-    //                     name: "role_id",
-    //                     choices: res
-    //                 });
-    //             }); 
-    //         }
+        if (table_name === "employees") {
 
-    //         inquirer.prompt(questions).then(moreAnswers => {});
+            db.choices.employees().then(res => {
 
-    //     });
+                inquirer.prompt([
+                    formatListQuestion("employee","employee_id",res),
+                    {
+                        message: "What do you want to update for this employee?",
+                        name: "whatToUpdate",
+                        type: "list",
+                        choices: ["Role","Department","Both"]
+                    }
+                ]).then(answers => {
 
+                    let employeeId = answers.employee_id;
 
-        // let managerChoices = [];
-        // let roleChoices = [];
+                    switch(answers.whatToUpdate) {
 
+                        case "Role":
+                            db.choices.roles().then(res => {
+                                inquirer.prompt([formatListQuestion("role","role_id",res)]).then(answers => {
+                                    db.update(table_name,res,employeeId);
+                                    mainPrompt();
+                                }); 
+                            });
+                            break;
+                        case "Department":
+                            db.choices.departments().then(res => {
+                                inquirer.prompt([formatListQuestion("department","department_id",res)]).then(answers => {
+                                    db.update(table_name,res,employeeId);
+                                    mainPrompt();
+                                });
+                            });
+                            break;
+                        case "Both":
+                            db.choices.roles().then(res => {
+                                inquirer.prompt([formatListQuestion("role","role_id",res)]).then(answers => {
+                                    let newInfo = answers;
+                                    db.choices.departments().then(res => {
+                                        inquirer.prompt([formatListQuestion("department","department_id",res)]).then(answers => {
+                                            newInfo.department_id = answers.department_id;
+                                            db.update(table_name,newInfo,employeeInfo);
+                                            mainPrompt();
+                                        }); 
+                                    });
+                                }); 
+                            });
+                            break;
+
+                    }
+
+                });
+            });
+        } 
         
+        else if (table_name === "roles") {
+            let questions = [
+                {
+                    message: "Role Title:",
+                    name: "title"
+                },
+                {
+                    message: "Salary",
+                    name: "salary",
+                    validate: salary => {
+                        if (isNaN(salary)) {
+                            console.log("\n Invalid: Must be a number. Do not include decimals.");
+                            return false;
+                        } else {
+                            return true;
+                        }
+                    }
+                }
+            ];
 
-        // db.getSpecific('id,firstName,lastName','employees').then(res => {
-        //     res.forEach(choice => {
-        //         managerChoices.push({name: choice.firstName + " "+choice.lastName, value: choice.id });
-        //     });
+            db.choices.departments().then(res => {
+                questions.push({
+                    message: "Select role:",
+                    type: "list",
+                    name: "department_id",
+                    choices: res
+                });   
+                inquirer.prompt(questions).then(answers => {
+                    db.createRow(answers,table_name);
+        
+                });
+            });
 
-        //     db.getSpecific('id,title','roles').then(res => {
-        //         // for (let i = 0; i < res.length; i++) {
-        //             // roleChoices.push({name: res[i].n, value: res[i].value });
-        //         res.forEach(choice => {
-        //             roleChoices.push({name: choice.title, value: choice.id });
-        //         });
-        //         // }
-        //         inquirer.prompt([
-        //             {
-        //                 message: "First Name:",
-        //                 name: "firstName"
-        //             },
-        //             {
-        //                 message: "Last Name:",
-        //                 name: "lastName"
-        //             },
-        //             {
-        //                 message: "Role:",
-        //                 type: "list",
-        //                 name: "role_id",
-        //                 choices: roleChoices
-        //             },
-        //             {
-        //                 message: "Manager:",
-        //                 type: "list",
-        //                 name: "manager_id",
-        //                 choices: managerChoices
-        //             }
-        //         ]).then(answers => {
-
-        //             db.createRow(answers,table_name);
-
-        //         });
-        //     });
-
-        // });
-    // } 
-    
-    // else if (table_name === "roles") {
-    //     let departmentChoices = [];
-
-    //     db.getSpecific('id,name','departments').then(res => {
-    //         res.forEach(choice => {
-    //             departmentChoices.push({name: choice.name, value: choice.id });
-    //         });
-    //         inquirer.prompt([
-    //             {
-    //                 message: "Role Title:",
-    //                 name: "title"
-    //             },
-    //             {
-    //                 message: "Salary:",
-    //                 name: "salary",
-    //                 validate: salary => {
-    //                     if (isNaN(salary)) {
-    //                         return false;
-    //                     } else {
-    //                         return true;
-    //                     }
-    //                 }
-    //             },
-    //             {
-    //                 message: "Department:",
-    //                 name: "department_id",
-    //                 type: "list",
-    //                 choices: departmentChoices
-    //             }
-    //         ]).then(answers => {
-    //             db.createRow(answers,table_name);
-    //         });
-    //     });
-
-    // } 
-    
-    // else if (table_name === "departments") {
-    //     inquirer.prompt([
-    //         {
-    //             message: "Department Name:",
-    //             name: "name"
-    //         }
-    //     ]).then(answers => {
-    //         db.createRow(answers,table_name);
-    //     });
-    // }
+        } 
+        
+        else if (table_name === "departments") {
+            inquirer.prompt([
+                {
+                    message: "Department Name:",
+                    name: "name"
+                }
+            ]).then(answers => {
+                db.createRow(answers,table_name);
+            });
+        }
+    }
 }
 
-function removePrompt(table_name) {}
+function removePrompt(table_name) {
+    
+}
 
 function quitApp() {
     console.log("\n"+"=".repeat(62)+"\n");
@@ -381,7 +396,16 @@ function quitApp() {
     });
 }
 
-function prettifyTableName(string) {
+function formatListQuestion(identifier, colName, choices) {
+    return {
+        message: `Select ${identifier}:`,
+        type: "list",
+        name: `${colName}`,
+        choices
+    };
+}
+
+function prettify(string) {
     return (string[0].toUpperCase() + string.slice(1)).slice(0,-1);
 }
 
